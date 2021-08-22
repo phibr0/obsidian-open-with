@@ -1,4 +1,4 @@
-import { normalizePath, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { normalizePath, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import open from "open";
 
 interface AppPair {
@@ -59,12 +59,16 @@ export default class OpenWithPlugin extends Plugin {
 					return false;
 				}
 			});
-		})
+		});
 	}
 
-	getAbsolutePathOfFile(file: TFile) {
+	getAbsolutePathOfFile(file: TFile): string {
 		//@ts-ignore
-		return normalizePath(`${this.app.vault.adapter.basePath}/${file.path}`);
+		const path = normalizePath(`${this.app.vault.adapter.basePath}/${file.path}`)
+		if(Platform.isDesktopApp && navigator.platform === "Win32") {
+			return path.replace(/\//g, "\\");
+		}
+		return path;
 	}
 
 	async loadSettings() {
