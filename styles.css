@@ -1,4 +1,12 @@
-/* Sets all the text color to red! */
-body {
-    color: red;
+.OW-setting-item {
+    display: block;
+}
+
+.OW-setting-item .setting-item-control {
+    justify-content: space-evenly;
+    align-items: normal;
+}
+
+.OW-setting-item .setting-item-info {
+    margin-bottom: 8px;
 }

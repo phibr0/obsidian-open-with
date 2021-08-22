@@ -1,38 +1,37 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { normalizePath, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import open from "open";
 
-interface MyPluginSettings {
-	mySetting: string;
+interface AppPair {
+	name: string;
+	code: string;
+	arguments: string;
+}
+interface OpenWithSettings {
+	apps: AppPair[];
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+const DEFAULT_SETTINGS: OpenWithSettings = {
+	apps: [],
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class OpenWithPlugin extends Plugin {
+	settings: OpenWithSettings;
 
 	async onload() {
 		console.log('loading plugin');
 
 		await this.loadSettings();
 
-		this.addRibbonIcon('dice', 'Sample Plugin', () => {
-			new Notice('This is a notice!');
-		});
-
-		this.addStatusBarItem().setText('Status Bar Text');
+		this.addSettingTab(new OpenWithSettingTab(this));
 
 		this.addCommand({
-			id: 'open-sample-modal',
-			name: 'Open Sample Modal',
-			// callback: () => {
-			// 	console.log('Simple Callback');
-			// },
+			id: "copy-absolute-file-path",
+			name: "Copy absolute Path of File to clipboard",
 			checkCallback: (checking: boolean) => {
-				let leaf = this.app.workspace.activeLeaf;
-				if (leaf) {
+				let file = this.app.workspace.getActiveFile()
+				if (file) {
 					if (!checking) {
-						new SampleModal(this.app).open();
+						navigator.clipboard.writeText(this.getAbsolutePathOfFile(file));
 					}
 					return true;
 				}
@@ -40,21 +39,32 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		this.registerCodeMirror((cm: CodeMirror.Editor) => {
-			console.log('codemirror', cm);
-		});
-
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		this.settings.apps.forEach(app => {
+			this.addCommand({
+				id: "open-file-with-" + app.name.toLowerCase(),
+				name: "Open File with " + app.name,
+				checkCallback: (checking: boolean) => {
+					let file = this.app.workspace.getActiveFile();
+					if (file) {
+						if (!checking) {
+							open(this.getAbsolutePathOfFile(file), {
+								app: {
+									name: app.code,
+									arguments: app.arguments.split(","),
+								}
+							});
+						}
+						return true;
+					}
+					return false;
+				}
+			});
+		})
 	}
 
-	onunload() {
-		console.log('unloading plugin');
+	getAbsolutePathOfFile(file: TFile) {
+		//@ts-ignore
+		return normalizePath(`${this.app.vault.adapter.basePath}/${file.path}`);
 	}
 
 	async loadSettings() {
@@ -65,48 +75,89 @@ export default class MyPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 }
+class OpenWithSettingTab extends PluginSettingTab {
+	plugin: OpenWithPlugin;
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		let {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
+	constructor(plugin: OpenWithPlugin) {
+		super(plugin.app, plugin);
 		this.plugin = plugin;
 	}
 
 	display(): void {
-		let {containerEl} = this;
+		let { containerEl } = this;
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
+		containerEl.createEl('h2', { text: 'Open with Plugin' });
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue('')
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName("Add new application")
+			.setClass("OW-setting-item")
+			.setDesc("Add a new application to open files with. You need to use the application path or command (for example \"code\" for VSCode) and arguments need to be comma seperated.")
+			.addText(cb => {
+				cb.inputEl.addClass("OW-name");
+				cb.setPlaceholder("Display Name");
+			})
+			.addText(cb => {
+				cb.inputEl.addClass("OW-code");
+				cb.setPlaceholder("Path/Command");
+			})
+			.addText(cb => {
+				cb.inputEl.addClass("OW-args");
+				cb.setPlaceholder("Arguments (optional)");
+			})
+			.addButton(btn => {
+				btn.setButtonText("+")
+					.onClick(async () => {
+						//@ts-ignore
+						const name = document.querySelector(".OW-name").value;
+						//@ts-ignore
+						const code = document.querySelector(".OW-code").value;
+						//@ts-ignore
+						const args = document.querySelector(".OW-args").value;
+						if (name && code) {
+							this.plugin.addCommand({
+								id: "open-file-with-" + name.toLowerCase(),
+								name: "Open File with " + name,
+								checkCallback: (checking: boolean) => {
+									let file = this.app.workspace.getActiveFile();
+									if (file) {
+										if (!checking) {
+											open(this.plugin.getAbsolutePathOfFile(file), {
+												app: {
+													name: code,
+													arguments: args.split(","),
+												}
+											});
+										}
+										return true;
+									}
+									return false;
+								}
+							});
+							this.plugin.settings.apps.push({ name, code, arguments: args });
+							await this.plugin.saveSettings();
+							this.display();
+						} else {
+							new Notice("Display Name & Path/Command are always neccessary.");
+						}
+					});
+			});
+
+		this.plugin.settings.apps.forEach(app => {
+			new Setting(containerEl)
+				.setName(app.name)
+				.setDesc(`Command: ${app.code}${app.arguments ? ` | Arguments: ${app.arguments}` : ""}`)
+				.addButton(btn => {
+					btn.setIcon("trash")
+						.setTooltip("Remove")
+						.onClick(async () => {
+							new Notice("You need to restart Obsidian for these changes to take effect.");
+							this.plugin.settings.apps.remove(app);
+							await this.plugin.saveSettings();
+							this.display();
+						});
+				});
+		});
 	}
 }
