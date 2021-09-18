@@ -39,6 +39,22 @@ export default class OpenWithPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'show-file-in-explorer',
+			name: 'Show File in system explorer',
+			checkCallback: (checking: boolean) => {
+				const { shell } = require('electron');
+				let file = this.app.workspace.getActiveFile();
+				if (file) {
+					if (!checking) {
+						shell.showItemInFolder(this.getAbsolutePathOfFile(file));
+					}
+					return true;
+				}
+				return false;
+			}
+		})
+
 		this.settings.apps.forEach(app => {
 			this.addCommand({
 				id: "open-file-with-" + app.name.toLowerCase(),
@@ -65,7 +81,7 @@ export default class OpenWithPlugin extends Plugin {
 	getAbsolutePathOfFile(file: TFile): string {
 		//@ts-ignore
 		const path = normalizePath(`${this.app.vault.adapter.basePath}/${file.path}`)
-		if(Platform.isDesktopApp && navigator.platform === "Win32") {
+		if (Platform.isDesktopApp && navigator.platform === "Win32") {
 			return path.replace(/\//g, "\\");
 		}
 		return path;
