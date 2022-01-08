@@ -1,10 +1,11 @@
-import { normalizePath, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { Menu, MenuItem, normalizePath, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import open from "open";
 
 interface AppPair {
 	name: string;
 	code: string;
 	arguments: string;
+	showInMenu: boolean;
 }
 interface OpenWithSettings {
 	apps: AppPair[];
@@ -76,7 +77,31 @@ export default class OpenWithPlugin extends Plugin {
 				}
 			});
 		});
+
+
+
+		this.registerEvent(
+			this.app.workspace.on("file-menu", this.fileMenuHandlerCreateNew),
+		);
 	}
+
+	fileMenuHandlerCreateNew = (menu: Menu, file: TFile) => {
+		this.settings.apps.forEach(app => {
+			if (app.showInMenu) {
+				menu.addItem(item => {
+					item
+						.setTitle(`Open with ${app.name}`)
+						.setIcon('popup-open')
+						.onClick(() => open(this.getAbsolutePathOfFile(file), {
+							app: {
+								name: app.code,
+								arguments: app.arguments.split(","),
+							}
+						}));
+				})
+			}
+		});
+	};
 
 	getAbsolutePathOfFile(file: TFile): string {
 		//@ts-ignore
@@ -107,6 +132,7 @@ class OpenWithSettingTab extends PluginSettingTab {
 		let { containerEl } = this;
 
 		containerEl.empty();
+		containerEl.addClass('OW-settings-page')
 
 		containerEl.createEl('h2', { text: 'Open with Plugin' });
 
@@ -155,7 +181,7 @@ class OpenWithSettingTab extends PluginSettingTab {
 									return false;
 								}
 							});
-							this.plugin.settings.apps.push({ name, code, arguments: args });
+							this.plugin.settings.apps.push({ name, code, arguments: args, showInMenu: false });
 							await this.plugin.saveSettings();
 							this.display();
 						} else {
@@ -168,6 +194,13 @@ class OpenWithSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName(app.name)
 				.setDesc(`Command: ${app.code}${app.arguments ? ` | Arguments: ${app.arguments}` : ""}`)
+				.addToggle(cb => {
+					cb.toggleEl.parentElement.prepend('Show in File-Menu ');
+					cb.setValue(app.showInMenu).onChange(async (value) => {
+						app.showInMenu = value;
+						await this.plugin.saveSettings();
+					})
+				})
 				.addButton(btn => {
 					btn.setIcon("trash")
 						.setTooltip("Remove")

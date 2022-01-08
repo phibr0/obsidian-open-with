@@ -10,3 +10,8 @@
 .OW-setting-item .setting-item-info {
     margin-bottom: 8px;
 }
+
+.OW-settings-page .setting-item-control > .checkbox-container{
+    margin-left: .5em;
+    margin-right: 1em;
+}
