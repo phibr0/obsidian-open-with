@@ -1,5 +1,6 @@
 import { Menu, MenuItem, normalizePath, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import open from "open";
+import { shell } from "electron";
 
 interface AppPair {
 	name: string;
@@ -9,10 +10,12 @@ interface AppPair {
 }
 interface OpenWithSettings {
 	apps: AppPair[];
+	sysexpInFileMenu: boolean;
 }
 
 const DEFAULT_SETTINGS: OpenWithSettings = {
 	apps: [],
+	sysexpInFileMenu: false,
 }
 
 export default class OpenWithPlugin extends Plugin {
@@ -44,7 +47,6 @@ export default class OpenWithPlugin extends Plugin {
 			id: 'show-file-in-explorer',
 			name: 'Show File in system explorer',
 			checkCallback: (checking: boolean) => {
-				const { shell } = require('electron');
 				let file = this.app.workspace.getActiveFile();
 				if (file) {
 					if (!checking) {
@@ -78,8 +80,6 @@ export default class OpenWithPlugin extends Plugin {
 			});
 		});
 
-
-
 		this.registerEvent(
 			this.app.workspace.on("file-menu", this.fileMenuHandlerCreateNew),
 		);
@@ -98,9 +98,17 @@ export default class OpenWithPlugin extends Plugin {
 								arguments: app.arguments.split(","),
 							}
 						}));
-				})
+				});
 			}
 		});
+		if(this.settings.sysexpInFileMenu) {
+			menu.addItem(item => {
+				item
+					.setTitle('Show in system explorer')
+					.setIcon('popup-open')
+					.onClick(() => shell.showItemInFolder(this.getAbsolutePathOfFile(file)));
+			});
+		}
 	};
 
 	getAbsolutePathOfFile(file: TFile): string {
@@ -212,5 +220,14 @@ class OpenWithSettingTab extends PluginSettingTab {
 						});
 				});
 		});
+		new Setting(containerEl)
+				.setName('Show "Show in system explorer" in File-Menu')
+				.setDesc('Show the enhanced "Show in system explorer" command in File-Menus')
+				.addToggle(cb => {
+					cb.setValue(this.plugin.settings.sysexpInFileMenu).onChange(async (value) => {
+						this.plugin.settings.sysexpInFileMenu = value;
+						await this.plugin.saveSettings();
+					})
+				});
 	}
 }
