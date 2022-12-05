@@ -6,5 +6,6 @@
 	"description": "This Plugin allows you to add multiple other programs to open notes with.",
 	"author": "phibr0",
 	"authorUrl": "https://phibr0.de",
-	"isDesktopOnly": true
+	"isDesktopOnly": true,
+	"donation": "https://ko-fi.com/phibr0"
 }
