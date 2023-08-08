@@ -1,6 +1,7 @@
-import { Menu, MenuItem, normalizePath, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { Menu, MenuItem, Notice, Platform, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import open from "open";
 import { shell } from "electron";
+import { normalize } from "path";
 
 interface AppPair {
 	name: string;
@@ -113,7 +114,7 @@ export default class OpenWithPlugin extends Plugin {
 
 	getAbsolutePathOfFile(file: TFile): string {
 		//@ts-ignore
-		const path = normalizePath(`${this.app.vault.adapter.basePath}/${file.path}`)
+		const path = normalize(`${this.app.vault.adapter.basePath}/${file.path}`);
 		if (Platform.isDesktopApp && navigator.platform === "Win32") {
 			return path.replace(/\//g, "\\");
 		}
