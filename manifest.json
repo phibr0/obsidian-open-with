@@ -1,7 +1,7 @@
 {
 	"id": "open-with",
 	"name": "Open with",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"minAppVersion": "0.12.11",
 	"description": "This Plugin allows you to add multiple other programs to open notes with.",
 	"author": "phibr0",
